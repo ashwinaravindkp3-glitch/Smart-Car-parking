@@ -1,38 +1,61 @@
 #include "slot_handler.h"
-#include "network_handler.h" // <-- Include this to call the publish function
+#include "system_state.h"
+// The GPIO pins connected to the 8 IR sensors
+const int SENSOR_PINS[8] = {34, 35, 32, 33, 25, 26, 27, 14};
+const int NUM_SLOTS = 8;
 
-// --- Configuration ---
-// Note: NUM_REAL_SENSORS is now defined in network_handler.h
-const int SENSOR_PINS[NUM_REAL_SENSORS] = {34, 35, 32, 33, 25, 26, 27};
-
-// --- Module Variables ---
-bool realSlotOccupied[NUM_REAL_SENSORS] = {false};
-
-// in slot_handler.cpp
+// Array to hold the current state of each slot (true = occupied)
+bool slotOccupied[NUM_SLOTS] = {false};
 
 void setupSlots() {
-  for (int i = 0; i < NUM_REAL_SENSORS; i++) {
+  for (int i = 0; i < NUM_SLOTS; i++) {
     pinMode(SENSOR_PINS[i], INPUT);
-    // Read the initial state of the sensor to prevent a false trigger on the first loop
-    realSlotOccupied[i] = (digitalRead(SENSOR_PINS[i]) == LOW);
   }
-  Serial.println("Initial sensor states have been read.");
 }
 
 void handleSlots() {
-  bool stateHasChanged = false;
-
-  for (int i = 0; i < NUM_REAL_SENSORS; i++) {
+  // This first part remains the same
+  for (int i = 0; i < NUM_SLOTS; i++) {
     bool isOccupied = (digitalRead(SENSOR_PINS[i]) == LOW);
-    if (isOccupied != realSlotOccupied[i]) {
-      realSlotOccupied[i] = isOccupied;
-      stateHasChanged = true;
+    if (isOccupied != slotOccupied[i]) {
+      slotOccupied[i] = isOccupied;
+      Serial.printf("Slot %d is now %s\n", i + 1, isOccupied ? "Occupied" : "Vacant");
     }
   }
 
-  if (stateHasChanged) {
-    Serial.println("Slot Handler: State change detected, calling network handler to publish.");
-    // Call the function from the network handler, passing our current sensor states
-    publishSlotStatus(realSlotOccupied);
+  // --- NEW LOGIC ---
+  // Check if a user was just validated by the RFID module.
+  if (userJustValidated) {
+    String freeSlotsMessage = getFreeSlotsString();
+    Serial.println(freeSlotsMessage); // Print the message
+    userJustValidated = false; // Reset the flag so we only print once
   }
+}
+
+int getFreeSlotCount() {
+  int count = 0;
+  for (int i = 0; i < NUM_SLOTS; i++) {
+    if (!slotOccupied[i]) {
+      count++;
+    }
+  }
+  return count;
+}
+
+String getFreeSlotsString() {
+  String freeSlots = "Available Slots: ";
+  bool firstSlotFound = false;
+  for (int i = 0; i < NUM_SLOTS; i++) {
+    if (!slotOccupied[i]) {
+      if (firstSlotFound) {
+        freeSlots += ", ";
+      }
+      freeSlots += String(i + 1);
+      firstSlotFound = true;
+    }
+  }
+  if (!firstSlotFound) {
+    return "Parking is full.";
+  }
+  return freeSlots;
 }
