@@ -14,14 +14,16 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 import logging
+import os
 from threading import Thread, Event
 
 # Configuration
-WEBSITE_URL = "YOUR_REPLIT_URL_HERE"  # Replace with your actual Replit URL
-CAMERA_BUTTON_SELECTOR = "button#openCamera"  # Update with actual CSS selector
+WEBSITE_URL = "https://park-sensei-1-cbenp2ebs2500.replit.app/"
+CAMERA_BUTTON_SELECTOR = '[data-testid="button-toggle-scanner"]'
 CAMERA_INDEX = 0  # 0 for USB camera, can be changed for multiple cameras
 QR_COOLDOWN = 10  # Seconds to wait after clicking button before detecting next QR
 
@@ -65,7 +67,12 @@ class SmartParkingAutomation:
             })
             
             # For Raspberry Pi
-            service = Service('/usr/bin/chromedriver')
+            chromedriver_path = '/usr/bin/chromedriver'
+            if not os.path.exists(chromedriver_path):
+                logger.error(f"Chromedriver not found at {chromedriver_path}")
+                logger.error("Please install it with: sudo apt-get install chromium-chromedriver")
+                return False
+            service = Service(chromedriver_path)
             
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
             logger.info("Browser initialized successfully")
@@ -187,9 +194,16 @@ class SmartParkingAutomation:
             logger.info("Successfully clicked button - website should now scan QR code")
             return True
             
+        except TimeoutException:
+            logger.error("Timeout occurred while waiting for the camera button.")
+            logger.error(f"Selector '{self.button_selector}' may be incorrect or the page is slow to load.")
+            return False
+        except NoSuchElementException:
+            logger.error("Camera button not found.")
+            logger.error(f"Selector '{self.button_selector}' did not find any element on the page.")
+            return False
         except Exception as e:
-            logger.error(f"Failed to click camera button: {e}")
-            logger.info(f"Make sure selector is correct: {self.button_selector}")
+            logger.error(f"An unexpected error occurred while clicking the camera button: {e}")
             return False
     
     def run(self):
