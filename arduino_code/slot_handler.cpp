@@ -1,8 +1,8 @@
 #include "slot_handler.h"
 #include "system_state.h"
-// The GPIO pins connected to the 8 IR sensors
-const int SENSOR_PINS[8] = {34, 35, 32, 33, 25, 26, 27, 14};
-const int NUM_SLOTS = 8;
+// The GPIO pins connected to the 7 IR sensors
+const int SENSOR_PINS[7] = {34, 35, 32, 33, 25, 26, 27};
+const int NUM_SLOTS = 7;
 
 // Array to hold the current state of each slot (true = occupied)
 bool slotOccupied[NUM_SLOTS] = {false};
